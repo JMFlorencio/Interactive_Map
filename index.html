@@ -176,22 +176,22 @@
         // Updated coordinates to match your reference image pins accurately
         // [0,0] is bottom-left, [1000, 1000] is top-right
         const stations = [
-            { id: 1, y: 700, x: 125, name: 'Main Entrance', desc: 'Entrance marker 1', img: 'assets/A2_Main Entrance.png' },
+            { id: 1, y: 700, x: 125, name: 'Main Entrance', desc: 'Entrance marker 1', img: 'Assets/A2_Main Entrance.png' },
             { id: 2, y: 590, x: 135, name: 'Arbor', desc: 'Arbor area 2', img: 'assets/Arbor.png' },
-            { id: 3, y: 585, x: 565, name: 'Cactus & Succulents', desc: 'Cactus garden 3', img: 'assets/Cactus&Succulents.png' },
-            { id: 4, y: 885, x: 775, name: 'Centennial Garden', desc: 'Garden section 4', img: 'assets/Centennial Garden.png' },
-            { id: 5, y: 795, x: 955, name: 'Chinese Garden', desc: 'Cultural area 5', img: 'assets/Chinese%20Garden.png' },
-            { id: 6, y: 735, x: 875, name: 'Vaughan Garden', desc: 'Friendship garden 6', img: 'assets/City%20of%20Vaughan%20Friendship%20Garden.png' },
-            { id: 7, y: 645, x: 805, name: 'Cordillera Village', desc: 'Heritage site 7', img: 'assets/Cordillera%20Village.png' },
-            { id: 8, y: 495, x: 675, name: 'Dahlia Garden', desc: 'Floral display 8', img: 'assets/Dahlia Garden.png' },
-            { id: 9, y: 365, x: 610, name: 'Greenhouse', desc: 'Indoor plants 9', img: 'assets/Greenhouse.png' },
-            { id: 10, y: 445, x: 480, name: 'Japanese Garden', desc: 'Zen space 10', img: 'assets/Japanese%20Garden.png' },
-            { id: 11, y: 385, x: 740, name: 'Korea Garden', desc: 'Cultural area 11', img: 'assets/Korea%20Garden.png' },
-            { id: 12, y: 295, x: 785, name: 'Orchidarium', desc: 'Orchid house 12', img: 'assets/Orchidarium.png' },
-            { id: 13, y: 290, x: 780, name: 'Thai Garden', desc: 'Friendship area 13', img: 'assets/Orchidarium.png' },
-            { id: 14, y: 155, x: 475, name: 'PMSEA Garden', desc: 'Memorial site 14', img: 'assets/PMSEA%20Garden.png' },
-            { id: 15, y: 280, x: 325, name: 'Japanese Tunnel', desc: 'Historical site 15', img: 'assets/Japanese%20Tunnel.png' },
-            { id: 16, y: 335, x: 270, name: 'Art Gallery', desc: 'Exhibition space 16', img: 'assets/Art_Gallery.png' }
+            { id: 3, y: 585, x: 565, name: 'Cactus & Succulents', desc: 'Cactus garden 3', img: 'Assets/Cactus&Succulents.png' },
+            { id: 4, y: 885, x: 775, name: 'Centennial Garden', desc: 'Garden section 4', img: 'Assets/Centennial Garden.png' },
+            { id: 5, y: 795, x: 955, name: 'Chinese Garden', desc: 'Cultural area 5', img: 'Assets/Chinese%20Garden.png' },
+            { id: 6, y: 735, x: 875, name: 'Vaughan Garden', desc: 'Friendship garden 6', img: 'Assets/City%20of%20Vaughan%20Friendship%20Garden.png' },
+            { id: 7, y: 645, x: 805, name: 'Cordillera Village', desc: 'Heritage site 7', img: 'Assets/Cordillera%20Village.png' },
+            { id: 8, y: 495, x: 675, name: 'Dahlia Garden', desc: 'Floral display 8', img: 'Assets/Dahlia Garden.png' },
+            { id: 9, y: 365, x: 610, name: 'Greenhouse', desc: 'Indoor plants 9', img: 'Assets/Greenhouse.png' },
+            { id: 10, y: 445, x: 480, name: 'Japanese Garden', desc: 'Zen space 10', img: 'Assets/Japanese%20Garden.png' },
+            { id: 11, y: 385, x: 740, name: 'Korea Garden', desc: 'Cultural area 11', img: 'Assets/Korea%20Garden.png' },
+            { id: 12, y: 295, x: 785, name: 'Orchidarium', desc: 'Orchid house 12', img: 'Assets/Orchidarium.png' },
+            { id: 13, y: 290, x: 780, name: 'Thai Garden', desc: 'Friendship area 13', img: 'Assets/Orchidarium.png' },
+            { id: 14, y: 155, x: 475, name: 'PMSEA Garden', desc: 'Memorial site 14', img: 'Assets/PMSEA%20Garden.png' },
+            { id: 15, y: 280, x: 325, name: 'Japanese Tunnel', desc: 'Historical site 15', img: 'Assets/Japanese%20Tunnel.png' },
+            { id: 16, y: 335, x: 270, name: 'Art Gallery', desc: 'Exhibition space 16', img: 'Assets/Art_Gallery.png' }
         ];
 
         const map = L.map('map', {
@@ -204,7 +204,7 @@
         });
 
         const bounds = [[0, 0], [1000, 1000]];
-        L.imageOverlay('assets/A1_Map.png', bounds).addTo(map);
+        L.imageOverlay('Assets/A1_Map.png', bounds).addTo(map);
         map.fitBounds(bounds);
 
         const listContainer = document.getElementById('station-list');
