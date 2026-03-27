@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Resort Map | Premium Edition</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --brand: #ff9800;
+            --dark: #1a1a1a;
+            --glass: rgba(255, 255, 255, 0.85);
+            --radius: 24px;
+        }
+
+        body, html { 
+            margin: 0; padding: 0; height: 100%; 
+            font-family: 'Inter', sans-serif; 
+            background: #f0f2f5; 
+            overflow: hidden; 
+            touch-action: none; 
+        }
+        
+        #map { height: 100vh; width: 100vw; background: #e5e7eb; z-index: 1; }
+
+        .search-wrapper {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 70%;
+            max-width: 300px;
+            z-index: 1000;
+        }
+
+        #search-input {
+            width: 100%;
+            padding: 12px 18px;
+            border-radius: 50px;
+            border: none;
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            font-size: 15px;
+            outline: none;
+        }
+
+        #bottom-sheet {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 40px; 
+            min-height: 40px;
+            max-height: 250px; 
+            background: white;
+            z-index: 1000;
+            border-radius: var(--radius) var(--radius) 0 0;
+            box-shadow: 0 -10px 30px rgba(0,0,0,0.1);
+            padding: 0 20px 20px 20px;
+            display: flex;
+            flex-direction: column;
+            transition: height 0.1s ease-out;
+            overflow: hidden;
+            will-change: height;
+        }
+
+        .drag-handle-container {
+            width: 100%;
+            padding: 15px 0;
+            cursor: grab;
+            display: flex;
+            justify-content: center;
+        }
+
+        .drag-handle {
+            width: 40px;
+            height: 5px;
+            background: #ccc;
+            border-radius: 10px;
+        }
+
+        .sheet-title {
+            font-weight: 600;
+            font-size: 18px;
+            margin-top: 5px;
+            margin-bottom: 15px;
+            color: var(--dark);
+        }
+
+        #station-list {
+            display: flex;
+            overflow-x: auto;
+            gap: 15px;
+            padding-bottom: 15px;
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        #station-list::-webkit-scrollbar { display: none; }
+
+        .station-card {
+            flex: 0 0 140px;
+            scroll-snap-align: start;
+            cursor: pointer;
+        }
+
+        .station-card img {
+            width: 140px;
+            height: 100px;
+            border-radius: 16px;
+            object-fit: cover;
+            background: #eee;
+        }
+
+        .station-card span {
+            display: block;
+            margin-top: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--dark);
+        }
+
+        /* UPDATED PIN STYLE WITH NUMBER */
+        .orange-pin-wrapper {
+            position: relative;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .orange-pin {
+            width: 24px;
+            height: 24px;
+            background: var(--brand);
+            border: 2.5px solid white;
+            border-radius: 50% 50% 50% 0;
+            transform: rotate(-45deg);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            position: absolute;
+        }
+
+        .pin-number {
+            position: relative;
+            z-index: 2;
+            color: white;
+            font-size: 11px;
+            font-weight: 900;
+            transform: translateY(-2px); /* Centers the number above the point */
+        }
+    </style>
+</head>
+<body>
+
+    <div class="search-wrapper">
+        <input type="text" id="search-input" placeholder="Find a place..." onkeyup="filterStations()">
+    </div>
+
+    <div id="map"></div>
+
+    <div id="bottom-sheet">
+        <div class="drag-handle-container" id="drag-zone">
+            <div class="drag-handle"></div>
+        </div>
+        <div class="sheet-title">Explore Botanical</div>
+        <div id="station-list"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // Updated coordinates to match your reference image pins accurately
+        // [0,0] is bottom-left, [1000, 1000] is top-right
+        const stations = [
+            { id: 1, y: 700, x: 125, name: 'Main Entrance', desc: 'Entrance marker 1', img: 'assets/A2_Main Entrance.png' },
+            { id: 2, y: 590, x: 135, name: 'Arbor', desc: 'Arbor area 2', img: 'assets/Arbor.png' },
+            { id: 3, y: 585, x: 565, name: 'Cactus & Succulents', desc: 'Cactus garden 3', img: 'assets/Cactus&Succulents.png' },
+            { id: 4, y: 885, x: 775, name: 'Centennial Garden', desc: 'Garden section 4', img: 'assets/Centennial Garden.png' },
+            { id: 5, y: 795, x: 955, name: 'Chinese Garden', desc: 'Cultural area 5', img: 'assets/Chinese%20Garden.png' },
+            { id: 6, y: 735, x: 875, name: 'Vaughan Garden', desc: 'Friendship garden 6', img: 'assets/City%20of%20Vaughan%20Friendship%20Garden.png' },
+            { id: 7, y: 645, x: 805, name: 'Cordillera Village', desc: 'Heritage site 7', img: 'assets/Cordillera%20Village.png' },
+            { id: 8, y: 495, x: 675, name: 'Dahlia Garden', desc: 'Floral display 8', img: 'assets/Dahlia Garden.png' },
+            { id: 9, y: 365, x: 610, name: 'Greenhouse', desc: 'Indoor plants 9', img: 'assets/Greenhouse.png' },
+            { id: 10, y: 445, x: 480, name: 'Japanese Garden', desc: 'Zen space 10', img: 'assets/Japanese%20Garden.png' },
+            { id: 11, y: 385, x: 740, name: 'Korea Garden', desc: 'Cultural area 11', img: 'assets/Korea%20Garden.png' },
+            { id: 12, y: 295, x: 785, name: 'Orchidarium', desc: 'Orchid house 12', img: 'assets/Orchidarium.png' },
+            { id: 13, y: 290, x: 780, name: 'Thai Garden', desc: 'Friendship area 13', img: 'assets/Orchidarium.png' },
+            { id: 14, y: 155, x: 475, name: 'PMSEA Garden', desc: 'Memorial site 14', img: 'assets/PMSEA%20Garden.png' },
+            { id: 15, y: 280, x: 325, name: 'Japanese Tunnel', desc: 'Historical site 15', img: 'assets/Japanese%20Tunnel.png' },
+            { id: 16, y: 335, x: 270, name: 'Art Gallery', desc: 'Exhibition space 16', img: 'assets/Art_Gallery.png' }
+        ];
+
+        const map = L.map('map', {
+            crs: L.CRS.Simple,
+            minZoom: -0.5, 
+            maxZoom: 1,    
+            zoomControl: false,
+            attributionControl: false,
+            bounceAtZoomLimits: true 
+        });
+
+        const bounds = [[0, 0], [1000, 1000]];
+        L.imageOverlay('assets/A1_Map.png', bounds).addTo(map);
+        map.fitBounds(bounds);
+
+        const listContainer = document.getElementById('station-list');
+        stations.forEach(s => {
+            const icon = L.divIcon({
+                className: 'custom-div-icon',
+                html: `
+                    <div class="orange-pin-wrapper">
+                        <div class="orange-pin"></div>
+                        <div class="pin-number">${s.id}</div>
+                    </div>
+                `,
+                iconSize: [30, 30],
+                iconAnchor: [15, 30]
+            });
+            
+            const marker = L.marker([s.y, s.x], { icon: icon }).addTo(map)
+                .bindPopup(`<div class="popup-container"><b>${s.name}</b><br>${s.desc}</div>`);
+            
+            const card = document.createElement('div');
+            card.className = 'station-card';
+            card.setAttribute('data-name', s.name.toLowerCase());
+            card.innerHTML = `
+                <img src="${s.img}" alt="${s.name}" onerror="this.src='https://via.placeholder.com/140x100?text=${s.name}'">
+                <span>${s.name}</span>
+            `;
+            card.onclick = () => {
+                map.flyTo([s.y, s.x], 0.5, { duration: 1.5 });
+                marker.openPopup();
+            };
+            listContainer.appendChild(card);
+        });
+
+        const sheet = document.getElementById('bottom-sheet');
+        const dragZone = document.getElementById('drag-zone');
+        let isDragging = false;
+        let startY, startHeight;
+
+        const startDrag = (e) => {
+            isDragging = true;
+            startY = e.pageY || (e.touches ? e.touches[0].pageY : 0);
+            startHeight = sheet.offsetHeight;
+            sheet.style.transition = 'none';
+        };
+
+        const onDrag = (e) => {
+            if (!isDragging) return;
+            const currentY = e.pageY || (e.touches ? e.touches[0].pageY : 0);
+            const deltaY = startY - currentY;
+            const newHeight = startHeight + deltaY;
+            if (newHeight >= 40 && newHeight <= 250) {
+                sheet.style.height = `${newHeight}px`;
+            }
+        };
+
+        const stopDrag = () => {
+            if (!isDragging) return;
+            isDragging = false;
+            sheet.style.transition = 'height 0.3s ease';
+            if (sheet.offsetHeight < 100) {
+                sheet.style.height = "40px";
+            } else {
+                sheet.style.height = "250px";
+            }
+        };
+
+        dragZone.addEventListener('mousedown', startDrag);
+        window.addEventListener('mousemove', onDrag);
+        window.addEventListener('mouseup', stopDrag);
+        dragZone.addEventListener('touchstart', startDrag, {passive: true});
+        window.addEventListener('touchmove', onDrag, {passive: false});
+        window.addEventListener('touchend', stopDrag);
+
+        function filterStations() {
+            const query = document.getElementById('search-input').value.toLowerCase();
+            document.querySelectorAll('.station-card').forEach(card => {
+                const name = card.getAttribute('data-name');
+                card.style.display = name.includes(query) ? 'block' : 'none';
+            });
+        }
+    </script>
+</body>
+</html>
