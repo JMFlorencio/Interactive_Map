@@ -3,285 +3,251 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Resort Map | Premium Edition</title>
+    <title>Baguio Botanical Garden | Interactive Map</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     
-    <style>
-        :root {
-            --brand: #ff9800;
-            --dark: #1a1a1a;
-            --glass: rgba(255, 255, 255, 0.85);
-            --radius: 24px;
+    <style> 
+        @font-face {
+            font-family: 'Agrandir';
+            src: url('Assets/Agrandir-Regular.woff2') format('woff2');
+            font-weight: normal; font-style: normal;
+        }
+
+        :root { 
+            --brand: #00A699; 
+            --dark: #1a1a1a; 
+            --font-main: 'Agrandir', 'Inter', sans-serif;
         }
 
         body, html { 
             margin: 0; padding: 0; height: 100%; 
-            font-family: 'Inter', sans-serif; 
-            background: #f0f2f5; 
-            overflow: hidden; 
-            touch-action: none; 
+            font-family: var(--font-main); 
+            overflow: hidden; background: #d1d5db; 
         }
         
-        #map { height: 100vh; width: 100vw; background: #e5e7eb; z-index: 1; }
+        #map { height: 100vh; width: 100vw; z-index: 1; background: #d1d5db; }
 
-        .search-wrapper {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            width: 70%;
-            max-width: 300px;
-            z-index: 1000;
+        /* PANO OVERLAY */
+        #pano-overlay-container {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 2000; display: none; background: #000;
+            pointer-events: auto !important;
         }
+
+        .pano-top-bar {
+            position: absolute; top: 0; left: 0; width: 100%; height: 60px;
+            background: var(--dark); display: flex; align-items: center;
+            justify-content: space-between; padding: 0 20px; box-sizing: border-box;
+            z-index: 2001; border-bottom: 2px solid var(--brand);
+        }
+
+        .pano-title { color: white; font-weight: 800; font-size: 16px; }
+
+        .exit-pill-btn {
+            background: var(--brand); color: white; border: none;
+            padding: 10px 22px; border-radius: 50px; font-weight: 800;
+            font-size: 12px; cursor: pointer; text-transform: uppercase;
+        }
+
+        #pano-frame { 
+            position: absolute; top: 60px; left: 0;
+            width: 100%; height: calc(100% - 60px); 
+            border: none; z-index: 2000; pointer-events: auto !important;
+        }
+
+        /* MAP ELEMENTS */
+        .leaflet-top.leaflet-left { top: 80px; }
+        .brand-pin-wrapper { position: relative; width: 30px; height: 30px; display: flex; justify-content: center; align-items: center; }
+        .brand-pin { width: 24px; height: 24px; background: var(--brand); border: 2.5px solid white; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); box-shadow: 0 4px 8px rgba(0,0,0,0.3); position: absolute; }
+        .pin-number { position: relative; z-index: 2; color: white; font-size: 11px; font-weight: 900; transform: translateY(-2px); }
 
         #search-input {
-            width: 100%;
-            padding: 12px 18px;
-            border-radius: 50px;
-            border: none;
-            background: var(--glass);
-            backdrop-filter: blur(10px);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            font-size: 15px;
-            outline: none;
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            width: 80%; max-width: 400px; height: 45px; padding: 0 20px;
+            border-radius: 50px; border: 2px solid transparent; background: rgba(255,255,255,0.95);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1); z-index: 100; 
+            font-family: var(--font-main); outline: none; transition: 0.3s;
         }
+        #search-input:focus { border-color: var(--brand); }
 
+        /* BOTTOM SHEET */
         #bottom-sheet {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 40px; 
-            min-height: 40px;
-            max-height: 250px; 
-            background: white;
-            z-index: 1000;
-            border-radius: var(--radius) var(--radius) 0 0;
-            box-shadow: 0 -10px 30px rgba(0,0,0,0.1);
-            padding: 0 20px 20px 20px;
-            display: flex;
-            flex-direction: column;
-            transition: height 0.1s ease-out;
+            position: absolute; bottom: 0; left: 0; right: 0;
+            height: 50px; background: white; z-index: 500;
+            border-radius: 24px 24px 0 0; padding: 0 20px 20px;
+            transition: height 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            box-shadow: 0 -5px 25px rgba(0,0,0,0.1);
+            display: flex; flex-direction: column;
+            touch-action: pan-y;
             overflow: hidden;
-            will-change: height;
         }
 
-        .drag-handle-container {
-            width: 100%;
-            padding: 15px 0;
-            cursor: grab;
-            display: flex;
-            justify-content: center;
+        .drag-handle { 
+            width: 40px; height: 5px; background: #e5e7eb; 
+            margin: 12px auto; border-radius: 10px; cursor: grab; flex-shrink: 0; 
         }
 
-        .drag-handle {
-            width: 40px;
-            height: 5px;
-            background: #ccc;
-            border-radius: 10px;
+        .sheet-label { 
+            font-size: 14px; 
+            font-weight: 800; 
+            color: #000000; /* Black text */
+            text-transform: uppercase; 
+            margin-bottom: 15px; 
+            pointer-events: none; 
+            flex-shrink: 0; 
         }
-
-        .sheet-title {
-            font-weight: 600;
-            font-size: 18px;
-            margin-top: 5px;
-            margin-bottom: 15px;
-            color: var(--dark);
+        
+        #station-list { 
+            display: flex; overflow-x: auto; gap: 15px; padding-bottom: 10px; 
+            scrollbar-width: none; 
+            opacity: 0; transition: opacity 0.3s ease;
         }
-
-        #station-list {
-            display: flex;
-            overflow-x: auto;
-            gap: 15px;
-            padding-bottom: 15px;
-            scroll-snap-type: x mandatory;
-            -webkit-overflow-scrolling: touch;
-        }
-
+        
+        #bottom-sheet.open #station-list { opacity: 1; }
+        
         #station-list::-webkit-scrollbar { display: none; }
-
-        .station-card {
-            flex: 0 0 140px;
-            scroll-snap-align: start;
-            cursor: pointer;
-        }
-
-        .station-card img {
-            width: 140px;
-            height: 100px;
-            border-radius: 16px;
-            object-fit: cover;
-            background: #eee;
-        }
-
-        .station-card span {
-            display: block;
-            margin-top: 8px;
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--dark);
-        }
-
-        /* UPDATED PIN STYLE WITH NUMBER */
-        .orange-pin-wrapper {
-            position: relative;
-            width: 30px;
-            height: 30px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .orange-pin {
-            width: 24px;
-            height: 24px;
-            background: var(--brand);
-            border: 2.5px solid white;
-            border-radius: 50% 50% 50% 0;
-            transform: rotate(-45deg);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-            position: absolute;
-        }
-
-        .pin-number {
-            position: relative;
-            z-index: 2;
-            color: white;
-            font-size: 11px;
-            font-weight: 900;
-            transform: translateY(-2px); /* Centers the number above the point */
-        }
+        .station-card { flex: 0 0 160px; cursor: pointer; text-align: center; }
+        .station-card img { width: 100%; height: 90px; border-radius: 14px; object-fit: cover; border: 1px solid #eee; display: block; }
+        .station-card span { font-size: 11px; font-weight: 600; display: block; margin-top: 8px; color: var(--dark); }
+        .popup-btn { background: var(--brand); color: white; border: none; padding: 10px 18px; margin-top: 10px; border-radius: 8px; cursor: pointer; font-weight: 800; font-size: 12px; text-transform: uppercase; }
     </style>
 </head>
 <body>
 
-    <div class="search-wrapper">
-        <input type="text" id="search-input" placeholder="Find a place..." onkeyup="filterStations()">
-    </div>
-
+    <input type="text" id="search-input" placeholder="Search garden..." onkeyup="filterStations()">
     <div id="map"></div>
 
-    <div id="bottom-sheet">
-        <div class="drag-handle-container" id="drag-zone">
-            <div class="drag-handle"></div>
+    <div id="pano-overlay-container">
+        <div class="pano-top-bar">
+            <span class="pano-title">Baguio Botanical Garden</span>
+            <button class="exit-pill-btn" id="header-exit-btn">Back to Map</button>
         </div>
-        <div class="sheet-title">Explore Botanical</div>
+        <iframe id="pano-frame" src="" allow="accelerometer; gyroscope; xr-spatial-tracking; fullscreen" allowfullscreen></iframe>
+    </div>
+
+    <div id="bottom-sheet">
+        <div class="drag-handle" id="sheet-handle"></div>
+        <div class="sheet-label">Botanical Garden Stations</div>
         <div id="station-list"></div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
-        // Updated coordinates to match your reference image pins accurately
-        // [0,0] is bottom-left, [1000, 1000] is top-right
         const stations = [
-            { id: 1, y: 700, x: 125, name: 'Main Entrance', desc: 'Entrance marker 1', img: 'Assets/A2_Main Entrance.png' },
-            { id: 2, y: 590, x: 135, name: 'Centennial Garden', desc: 'Marker Area 2', img: 'Assets/Centennial Garden.png' },
-            { id: 3, y: 585, x: 565, name: 'Orchidarium', desc: 'Marker Area 3', img: 'Assets/Orchidarium.png' },
-            { id: 4, y: 885, x: 775, name: 'PMSEA Garden', desc: 'Marker Area 4', img: 'Assets/PMSEA%20Garden.png' },
-            { id: 5, y: 795, x: 955, name: 'Japanese Garden', desc: 'Marker Area 5', img: 'Assets/Japanese%20Garden.png' },
-            { id: 6, y: 735, x: 875, name: 'Japanese Tunnel', desc: 'Marker Area 6', img: 'Assets/Japanese%20Tunnel.png' },,
-            { id: 7, y: 645, x: 805, name: 'Korea Garden', desc: 'Marker Area 7', img: 'Assets/Korea%20Garden.png' },
-            { id: 8, y: 495, x: 675, name: 'Chinese Garden', desc: 'Marker Area 8', img: 'Assets/Chinese Garden.png' },
-            { id: 9, y: 365, x: 610, name: 'Asian Garden', desc: 'Marker Area 9', img: 'Assets/Asian Garden.png' },
-            { id: 10, y: 445, x: 480, name: 'Arbor', desc: 'Marker Area 10', img: 'Assets/Arbor.png' },
-            { id: 11, y: 385, x: 740, name: 'City of Vaughan', desc: 'Marker Area 11', img: 'Assets/City of Vaughan Friendship Garden.png' },
-            { id: 12, y: 295, x: 785, name: 'Philippine-Thailand Friendship Garden', desc: 'Marker Area 12', img: 'Assets/Philippine-Thailand Friendship Garden.png' },
-            { id: 13, y: 155, x: 475, name: 'Cactus & Succulents', desc: 'Marker Area 14', img: 'Assets/Cactus&Succulents.png' },
-            { id: 14, y: 280, x: 325, name: 'Cordillera Village', desc: 'Marker Area 15', img: 'Assets/Cordillera%20Village.png' },
-            { id: 15, y: 335, x: 270, name: 'Green House', desc: 'Marker Area 16', img: 'Assets/Greenhouse.png' },
+            { id: 1, y: 700, x: 125, name: 'Main Entrance', img: 'Assets/A2_Main Entrance.png', pano: 'https://tour.panoee.net/mainentrance/1' },
+            { id: 2, y: 590, x: 135, name: 'Centennial Garden', img: 'Assets/Centennial Garden.png', pano: 'https://tour.panoee.net/centennial-garden/1' },
+            { id: 3, y: 585, x: 565, name: 'Orchidarium', img: 'Assets/Orchidarium.png', pano: 'https://tour.panoee.net/orchidarium/1' },
+            { id: 4, y: 885, x: 775, name: 'PMSEA Garden', img: 'Assets/PMSEA%20Garden.png', pano: 'https://tour.panoee.net/pmsea-garden' },
+            { id: 5, y: 795, x: 955, name: 'Japanese Garden', img: 'Assets/Japanese%20Garden.png', pano: 'https://tour.panoee.net/japanese-garden' },
+            { id: 6, y: 735, x: 875, name: 'Japanese Tunnel', img: 'Assets/Japanese%20Tunnel.png', pano: 'https://tour.panoee.net/japanese-tunnel/1' },
+            { id: 7, y: 645, x: 805, name: 'Korea Garden', img: 'Assets/Korea%20Garden.png', pano: 'https://tour.panoee.net/korea-garden/1' },
+            { id: 8, y: 495, x: 675, name: 'Chinese Garden', img: 'Assets/Chinese Garden.png', pano: 'https://tour.panoee.net/chinese-garden/69cd28ffcd728200084a2654' },
+            { id: 9, y: 365, x: 610, name: 'Asian Garden', img: 'Assets/Asian Garden.png', pano: 'https://tour.panoee.net/asian-garden' },
+            { id: 10, y: 445, x: 480, name: 'Arbor', img: 'Assets/Arbor.png', pano: 'https://tour.panoee.net/arbor' },
+            { id: 11, y: 385, x: 740, name: 'City of Vaughan', img: 'Assets/City of Vaughan Friendship Garden.png', pano: 'https://tour.panoee.net/city-of-vaughan' },
+            { id: 12, y: 295, x: 785, name: 'Philippine-Thailand Friendship Garden', img: 'Assets/Philippine-Thailand Friendship Garden.png', pano: 'https://tour.panoee.net/philippine-thailand-friendship-garden/7-1' },
+            { id: 13, y: 155, x: 475, name: 'Cactus & Succulents', img: 'Assets/Cactus&Succulents.png', pano: 'https://tour.panoee.net/cactus-succulent-garden/1-1' },
+            { id: 14, y: 280, x: 325, name: 'Cordillera Village', img: 'Assets/Cordillera%20Village.png', pano: 'https://tour.panoee.net/cordillera-village/1' },
+            { id: 15, y: 335, x: 270, name: 'Green House', img: 'Assets/Greenhouse.png', pano: 'https://tour.panoee.net/greenhouse/1' },
         ];
 
-        const map = L.map('map', {
-            crs: L.CRS.Simple,
-            minZoom: -0.5, 
-            maxZoom: 1,    
-            zoomControl: false,
+        const bounds = [[0, 0], [1000, 1000]];
+        const map = L.map('map', { 
+            crs: L.CRS.Simple, 
+            zoomControl: true, // Enabled default zoom controller
             attributionControl: false,
-            bounceAtZoomLimits: true 
+            maxBounds: bounds, 
+            maxBoundsViscosity: 1.0, 
+            zoomSnap: 0.1,
+            wheelPxPerZoomLevel: 60 // Smoother scroll zoom
         });
 
-        const bounds = [[0, 0], [1000, 1000]];
         L.imageOverlay('Assets/A1_Map.png', bounds).addTo(map);
+        
+        // Initial Zoom Logic
         map.fitBounds(bounds);
+        const minZoom = map.getBoundsZoom(bounds);
+        map.setMinZoom(minZoom - 0.5); // Allow slightly further zoom out to see whitespace/context
+        map.setMaxZoom(3.0); // Increased max zoom for better detail
+        map.setZoom(minZoom);
 
-        const listContainer = document.getElementById('station-list');
+        const list = document.getElementById('station-list');
         stations.forEach(s => {
             const icon = L.divIcon({
                 className: 'custom-div-icon',
-                html: `
-                    <div class="orange-pin-wrapper">
-                        <div class="orange-pin"></div>
-                        <div class="pin-number">${s.id}</div>
-                    </div>
-                `,
-                iconSize: [30, 30],
-                iconAnchor: [15, 30]
+                html: `<div class="brand-pin-wrapper"><div class="brand-pin"></div><div class="pin-number">${s.id}</div></div>`,
+                iconSize: [30, 30], iconAnchor: [15, 30]
             });
-            
-            const marker = L.marker([s.y, s.x], { icon: icon }).addTo(map)
-                .bindPopup(`<div class="popup-container"><b>${s.name}</b><br>${s.desc}</div>`);
+
+            const marker = L.marker([s.y, s.x], {icon}).addTo(map)
+                .bindPopup(`<div style="text-align:center;"><b>${s.name}</b><br><button onclick="openPano('${s.pano}')" class="popup-btn">Enter 360°</button></div>`);
             
             const card = document.createElement('div');
             card.className = 'station-card';
-            card.setAttribute('data-name', s.name.toLowerCase());
-            card.innerHTML = `
-                <img src="${s.img}" alt="${s.name}" onerror="this.src='https://via.placeholder.com/140x100?text=${s.name}'">
-                <span>${s.name}</span>
-            `;
-            card.onclick = () => {
-                map.flyTo([s.y, s.x], 0.5, { duration: 1.5 });
-                marker.openPopup();
+            card.innerHTML = `<img src="${s.img}"><span>${s.id}. ${s.name}</span>`;
+            card.onclick = () => { 
+                marker.openPopup(); 
+                map.flyTo([s.y, s.x], 1.5, { duration: 1.5 }); // Increased zoom level when clicking card
             };
-            listContainer.appendChild(card);
+            list.appendChild(card);
         });
 
+        const overlay = document.getElementById('pano-overlay-container');
+        const frame = document.getElementById('pano-frame');
         const sheet = document.getElementById('bottom-sheet');
-        const dragZone = document.getElementById('drag-zone');
-        let isDragging = false;
-        let startY, startHeight;
+        const exitBtn = document.getElementById('header-exit-btn');
 
-        const startDrag = (e) => {
-            isDragging = true;
-            startY = e.pageY || (e.touches ? e.touches[0].pageY : 0);
-            startHeight = sheet.offsetHeight;
-            sheet.style.transition = 'none';
-        };
+        function openPano(url) { 
+            frame.src = url; 
+            overlay.style.display = 'block'; 
+            document.getElementById('map').style.pointerEvents = 'none';
+            sheet.style.pointerEvents = 'none';
+        }
+        
+        function closePano() { 
+            overlay.style.display = 'none'; 
+            frame.src = ""; 
+            document.getElementById('map').style.pointerEvents = 'auto';
+            sheet.style.pointerEvents = 'auto';
+        }
+        
+        exitBtn.onclick = closePano;
 
-        const onDrag = (e) => {
-            if (!isDragging) return;
-            const currentY = e.pageY || (e.touches ? e.touches[0].pageY : 0);
-            const deltaY = startY - currentY;
-            const newHeight = startHeight + deltaY;
-            if (newHeight >= 40 && newHeight <= 250) {
-                sheet.style.height = `${newHeight}px`;
-            }
-        };
+        /* SWIPE LOGIC */
+        let touchStartY = 0;
+        let touchEndY = 0;
 
-        const stopDrag = () => {
-            if (!isDragging) return;
-            isDragging = false;
-            sheet.style.transition = 'height 0.3s ease';
-            if (sheet.offsetHeight < 100) {
-                sheet.style.height = "40px";
+        const setSheetHeight = (isOpen) => {
+            if (isOpen) {
+                sheet.style.height = "260px";
+                sheet.classList.add('open');
             } else {
-                sheet.style.height = "250px";
+                sheet.style.height = "50px";
+                sheet.classList.remove('open');
             }
         };
 
-        dragZone.addEventListener('mousedown', startDrag);
-        window.addEventListener('mousemove', onDrag);
-        window.addEventListener('mouseup', stopDrag);
-        dragZone.addEventListener('touchstart', startDrag, {passive: true});
-        window.addEventListener('touchmove', onDrag, {passive: false});
-        window.addEventListener('touchend', stopDrag);
+        sheet.addEventListener('touchstart', e => { touchStartY = e.changedTouches[0].screenY; }, { passive: true });
+        sheet.addEventListener('touchend', e => {
+            touchEndY = e.changedTouches[0].screenY;
+            const distance = touchStartY - touchEndY;
+            if (distance > 50) setSheetHeight(true); 
+            if (distance < -50) setSheetHeight(false);
+        }, { passive: true });
+
+        document.getElementById('sheet-handle').onclick = () => {
+            setSheetHeight(!sheet.classList.contains('open'));
+        };
+
+        window.onload = () => { setTimeout(() => setSheetHeight(true), 800); };
 
         function filterStations() {
-            const query = document.getElementById('search-input').value.toLowerCase();
-            document.querySelectorAll('.station-card').forEach(card => {
-                const name = card.getAttribute('data-name');
-                card.style.display = name.includes(query) ? 'block' : 'none';
+            const q = document.getElementById('search-input').value.toLowerCase();
+            document.querySelectorAll('.station-card').forEach(c => {
+                const name = c.querySelector('span').innerText.toLowerCase();
+                c.style.display = name.includes(q) ? 'block' : 'none';
             });
         }
     </script>
