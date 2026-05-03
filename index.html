@@ -8,16 +8,20 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
     <style> 
+        /* FONT FIX: Ensure case-sensitivity matches your GitHub 'Assets' folder exactly */
         @font-face {
             font-family: 'Agrandir';
             src: url('Assets/Agrandir-Regular.woff2') format('woff2');
-            font-weight: normal; font-style: normal;
+            font-weight: normal; 
+            font-style: normal;
+            font-display: swap;
         }
 
         :root { 
             --brand: #00A699; 
             --dark: #1a1a1a; 
-            --font-main: 'Agrandir', 'Inter', sans-serif;
+            /* Fallback fonts added for better stability */
+            --font-main: 'Agrandir', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
         body, html { 
@@ -64,22 +68,22 @@
 
         #search-input {
             position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
-            width: 80%; max-width: 400px; height: 45px; padding: 0 20px;
+            width: 85%; max-width: 400px; height: 45px; padding: 0 20px;
             border-radius: 50px; border: 2px solid transparent; background: rgba(255,255,255,0.95);
             box-shadow: 0 10px 25px rgba(0,0,0,0.1); z-index: 100; 
             font-family: var(--font-main); outline: none; transition: 0.3s;
         }
-        #search-input:focus { border-color: var(--brand); }
+        #search-input:focus { border-color: var(--brand); width: 90%; }
 
         /* BOTTOM SHEET */
         #bottom-sheet {
             position: absolute; bottom: 0; left: 0; right: 0;
-            height: 50px; background: white; z-index: 500;
+            height: 60px; background: white; z-index: 500;
             border-radius: 24px 24px 0 0; padding: 0 20px 20px;
             transition: height 0.4s cubic-bezier(0.25, 1, 0.5, 1);
             box-shadow: 0 -5px 25px rgba(0,0,0,0.1);
             display: flex; flex-direction: column;
-            touch-action: pan-y;
+            touch-action: none; /* Controlled via JS for swiping */
             overflow: hidden;
         }
 
@@ -89,38 +93,45 @@
         }
 
         .sheet-label { 
-            font-size: 14px; 
+            font-size: 13px; 
             font-weight: 800; 
-            color: #000000; /* Black text */
+            color: #1a1a1a;
             text-transform: uppercase; 
             margin-bottom: 15px; 
             pointer-events: none; 
             flex-shrink: 0; 
+            letter-spacing: 0.5px;
         }
         
         #station-list { 
-            display: flex; overflow-x: auto; gap: 15px; padding-bottom: 10px; 
+            display: flex; overflow-x: auto; gap: 15px; padding-bottom: 20px; 
             scrollbar-width: none; 
             opacity: 0; transition: opacity 0.3s ease;
+            touch-action: pan-x;
         }
         
         #bottom-sheet.open #station-list { opacity: 1; }
         
         #station-list::-webkit-scrollbar { display: none; }
-        .station-card { flex: 0 0 160px; cursor: pointer; text-align: center; }
-        .station-card img { width: 100%; height: 90px; border-radius: 14px; object-fit: cover; border: 1px solid #eee; display: block; }
-        .station-card span { font-size: 11px; font-weight: 600; display: block; margin-top: 8px; color: var(--dark); }
-        .popup-btn { background: var(--brand); color: white; border: none; padding: 10px 18px; margin-top: 10px; border-radius: 8px; cursor: pointer; font-weight: 800; font-size: 12px; text-transform: uppercase; }
+        .station-card { flex: 0 0 160px; cursor: pointer; text-align: left; }
+        .station-card img { width: 100%; height: 95px; border-radius: 14px; object-fit: cover; border: 1px solid #f0f0f0; display: block; transition: transform 0.2s; }
+        .station-card:active img { transform: scale(0.95); }
+        .station-card span { font-size: 11px; font-weight: 700; display: block; margin-top: 8px; color: var(--dark); line-height: 1.2; }
+        
+        /* POPUP STYLING */
+        .leaflet-popup-content-wrapper { border-radius: 12px; padding: 5px; }
+        .popup-container { text-align: center; font-family: var(--font-main); }
+        .popup-btn { background: var(--brand); color: white; border: none; padding: 12px 20px; margin-top: 10px; border-radius: 8px; cursor: pointer; font-weight: 800; font-size: 12px; text-transform: uppercase; width: 100%; }
     </style>
 </head>
 <body>
 
-    <input type="text" id="search-input" placeholder="Search garden..." onkeyup="filterStations()">
+    <input type="text" id="search-input" placeholder="Find a garden station..." onkeyup="filterStations()">
     <div id="map"></div>
 
     <div id="pano-overlay-container">
         <div class="pano-top-bar">
-            <span class="pano-title">Baguio Botanical Garden</span>
+            <span class="pano-title">BagView 360° Experience</span>
             <button class="exit-pill-btn" id="header-exit-btn">Back to Map</button>
         </div>
         <iframe id="pano-frame" src="" allow="accelerometer; gyroscope; xr-spatial-tracking; fullscreen" allowfullscreen></iframe>
@@ -128,7 +139,7 @@
 
     <div id="bottom-sheet">
         <div class="drag-handle" id="sheet-handle"></div>
-        <div class="sheet-label">Botanical Garden Stations</div>
+        <div class="sheet-label">Explore Stations</div>
         <div id="station-list"></div>
     </div>
 
@@ -156,24 +167,19 @@
         const bounds = [[0, 0], [1000, 1000]];
         const map = L.map('map', { 
             crs: L.CRS.Simple, 
-            zoomControl: true, // Enabled default zoom controller
+            zoomControl: false, // Cleaner UI, we'll use fitBounds
             attributionControl: false,
             maxBounds: bounds, 
             maxBoundsViscosity: 1.0, 
-            zoomSnap: 0.1,
-            wheelPxPerZoomLevel: 60 // Smoother scroll zoom
+            zoomSnap: 0.1
         });
 
         L.imageOverlay('Assets/A1_Map.png', bounds).addTo(map);
-        
-        // Initial Zoom Logic
         map.fitBounds(bounds);
-        const minZoom = map.getBoundsZoom(bounds);
-        map.setMinZoom(minZoom - 0.5); // Allow slightly further zoom out to see whitespace/context
-        map.setMaxZoom(3.0); // Increased max zoom for better detail
-        map.setZoom(minZoom);
 
         const list = document.getElementById('station-list');
+        const markers = {};
+
         stations.forEach(s => {
             const icon = L.divIcon({
                 className: 'custom-div-icon',
@@ -182,14 +188,17 @@
             });
 
             const marker = L.marker([s.y, s.x], {icon}).addTo(map)
-                .bindPopup(`<div style="text-align:center;"><b>${s.name}</b><br><button onclick="openPano('${s.pano}')" class="popup-btn">Enter 360°</button></div>`);
+                .bindPopup(`<div class="popup-container"><b>${s.name}</b><br><button onclick="openPano('${s.pano}')" class="popup-btn">View 360°</button></div>`);
             
+            markers[s.id] = marker;
+
             const card = document.createElement('div');
             card.className = 'station-card';
             card.innerHTML = `<img src="${s.img}"><span>${s.id}. ${s.name}</span>`;
             card.onclick = () => { 
+                setSheetHeight(false);
                 marker.openPopup(); 
-                map.flyTo([s.y, s.x], 1.5, { duration: 1.5 }); // Increased zoom level when clicking card
+                map.flyTo([s.y, s.x], 1.2, { duration: 1 });
             };
             list.appendChild(card);
         });
@@ -202,46 +211,42 @@
         function openPano(url) { 
             frame.src = url; 
             overlay.style.display = 'block'; 
-            document.getElementById('map').style.pointerEvents = 'none';
-            sheet.style.pointerEvents = 'none';
+            document.body.style.overflow = 'hidden';
         }
         
         function closePano() { 
             overlay.style.display = 'none'; 
             frame.src = ""; 
-            document.getElementById('map').style.pointerEvents = 'auto';
-            sheet.style.pointerEvents = 'auto';
+            document.body.style.overflow = 'auto';
         }
         
         exitBtn.onclick = closePano;
 
-        /* SWIPE LOGIC */
-        let touchStartY = 0;
-        let touchEndY = 0;
-
+        /* REFINED SWIPE & SHEET LOGIC */
+        let startY;
         const setSheetHeight = (isOpen) => {
             if (isOpen) {
-                sheet.style.height = "260px";
+                sheet.style.height = "280px";
                 sheet.classList.add('open');
             } else {
-                sheet.style.height = "50px";
+                sheet.style.height = "60px";
                 sheet.classList.remove('open');
             }
         };
 
-        sheet.addEventListener('touchstart', e => { touchStartY = e.changedTouches[0].screenY; }, { passive: true });
+        sheet.addEventListener('touchstart', e => { startY = e.touches[0].clientY; });
         sheet.addEventListener('touchend', e => {
-            touchEndY = e.changedTouches[0].screenY;
-            const distance = touchStartY - touchEndY;
-            if (distance > 50) setSheetHeight(true); 
-            if (distance < -50) setSheetHeight(false);
-        }, { passive: true });
+            const endY = e.changedTouches[0].clientY;
+            if (startY - endY > 50) setSheetHeight(true);
+            if (endY - startY > 50) setSheetHeight(false);
+        });
 
         document.getElementById('sheet-handle').onclick = () => {
             setSheetHeight(!sheet.classList.contains('open'));
         };
 
-        window.onload = () => { setTimeout(() => setSheetHeight(true), 800); };
+        // Delay opening to show off the map first
+        setTimeout(() => setSheetHeight(true), 1200);
 
         function filterStations() {
             const q = document.getElementById('search-input').value.toLowerCase();
